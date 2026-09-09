@@ -80,6 +80,38 @@ export function BibleEditor() {
   const [aboutOpen, setAboutOpen] = useState(false)
   const [confirmNew, setConfirmNew] = useState(false)
   const [words, setWords] = useState(0)
+  const [installEvt, setInstallEvt] = useState<Event | null>(null)
+  const [canInstall, setCanInstall] = useState(false)
+
+  useEffect(() => {
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (navigator as unknown as { standalone?: boolean }).standalone === true
+    if (isStandalone) return
+    const onPrompt = (e: Event) => {
+      e.preventDefault()
+      setInstallEvt(e)
+      setCanInstall(true)
+    }
+    const onInstalled = () => {
+      setInstallEvt(null)
+      setCanInstall(false)
+    }
+    window.addEventListener('beforeinstallprompt', onPrompt)
+    window.addEventListener('appinstalled', onInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt)
+      window.removeEventListener('appinstalled', onInstalled)
+    }
+  }, [])
+
+  const installApp = async () => {
+    if (!installEvt) return
+    const promptEvt = installEvt as Event & { prompt: () => Promise<void> }
+    await promptEvt.prompt()
+    setInstallEvt(null)
+    setCanInstall(false)
+  }
 
   const flush = useCallback(
     (editor: { getHTML: () => string; getText: () => string } | null, titleValue: string) => {
@@ -201,6 +233,7 @@ export function BibleEditor() {
           <button onClick={() => editor && exportTxt(editor, title)}>TXT</button>
           <button onClick={() => editor && exportHtml(editor, title)}>HTML</button>
           <button onClick={copyText}>Copy</button>
+          {canInstall && <button className="install-btn" onClick={installApp}>Install</button>}
           <div className="saved-indicator" title="Saved to this browser">{savedAt || 'Autosaved to this browser'}</div>
         </div>
       </header>

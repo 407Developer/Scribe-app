@@ -1,6 +1,6 @@
 import { Extension } from '@tiptap/core'
 import type { EditorState } from '@tiptap/pm/state'
-import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
+import { Plugin, PluginKey, Selection, TextSelection } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import type { Node } from '@tiptap/pm/model'
@@ -73,7 +73,7 @@ export function insertVerse(view: EditorView, match: RefMatch): boolean {
   const end = tr.doc.content.size
   let cursor = tr.mapping.map(match.to) - spacer.nodeSize
   if (cursor < 0 || cursor > end) cursor = end
-  let sel: TextSelection
+  let sel: Selection
   try {
     sel = TextSelection.near(tr.doc.resolve(cursor))
   } catch {
