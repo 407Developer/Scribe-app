@@ -46,10 +46,10 @@ function exportHtml(editor: {
   const body = editor.getHTML()
   const blob = new Blob(
     [
-      `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${title || 'Scribe'}</title>` +
+      `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${title || 'Epistola'}</title>` +
         `<style>body{font-family:Georgia,serif;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.6;font-size:18px;color:#1f2937}` +
         `blockquote{border-left:4px solid #c7d2fe;margin:1em 0;padding:0.1em 1em;background:#f5f7ff;color:#333}` +
-        `blockquote p:last-child{color:#6b7280;font-size:0.85em}</style></head><body>${body}<hr><p style="color:#9ca3af;font-size:0.8em">Exported from Scribe</p></body></html>`,
+        `blockquote p:last-child{color:#6b7280;font-size:0.85em}</style></head><body>${body}<hr><p style="color:#9ca3af;font-size:0.8em">Exported from Epistola</p></body></html>`,
     ],
     { type: 'text/html' },
   )
@@ -216,10 +216,18 @@ export function BibleEditor() {
     <div className="app-root">
       <header className="topbar">
         <div className="brand">
-          <svg viewBox="0 0 24 24" className="brand-icon">
-            <path d="M4 4h5.5A2.5 2.5 0 0 1 12 6.5V20c-.5-1-1.5-2-3-2H4zM20 4h-5.5A2.5 2.5 0 0 0 12 6.5V20c.5-1 1.5-2 3-2h5z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+          <svg viewBox="0 0 24 24" className="brand-icon" aria-label="Epistola">
+            <rect x="1.5" y="1.5" width="21" height="21" rx="5" fill="url(#brand-gradient)" />
+            <path d="M6.5 5.2h3.4v1.9H6.5zM9.9 5.2h7.6v1.9H9.9zM6.5 9.2h3.4v1.9H6.5zM9.9 9.2h7.6v1.9H9.9zM6.5 13.2h3.4v1.9H6.5zM9.9 13.2h7.6v1.9H9.9z" fill="#f6ecd6" />
+            <circle cx="18" cy="7" r="1.35" fill="#c9a227" />
+            <defs>
+              <linearGradient id="brand-gradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#4338ca" />
+                <stop offset="1" stopColor="#26205e" />
+              </linearGradient>
+            </defs>
           </svg>
-          <span className="brand-name">Scribe</span>
+          <span className="brand-name">Epistola</span>
         </div>
         <input
           className="title-input"
@@ -257,7 +265,7 @@ export function BibleEditor() {
       {aboutOpen && (
         <div className="modal-backdrop" onClick={() => setAboutOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>How Scribe works</h2>
+            <h2>How Epistola works</h2>
             <ul>
               <li>
                 <strong>Type a reference</strong> — e.g. <code>John 3:16</code>, <code>Ps 23:1</code>,{' '}
@@ -266,7 +274,7 @@ export function BibleEditor() {
               <li>
                 <strong>Insert the verse</strong> — press <kbd>Shift</kbd>+<kbd>Enter</kbd> on a laptop or{' '}
                 <strong>tap the highlight</strong> on a phone, and the King James text is quoted right after the
-                reference. You can keep typing after it and still insert later — Scribe quotes the last reference you
+                reference. You can keep typing after it and still insert later — Epistola quotes the last reference you
                 wrote.
               </li>
               <li>

@@ -1,32 +1,26 @@
-# React + TypeScript + Vite
+# Epistola — Write with Scripture
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A distraction-free word processor that quotes the King James Bible as you write.
+Built for theological essays, letters, and apologetics.
 
-Currently, two official plugins are available:
+Type a reference — `John 3:16`, `Ps 23:1-3, 6`, `1 Cor 13:4-7` — and it highlights as you type.
+Press **Shift+Enter** (or tap the highlight on a phone) to insert the KJV text right after it as a blockquote,
+even if you keep typing past the reference. Works fully **offline** as an installable PWA.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Stack
+- React 19 + TypeScript + Vite 8
+- TipTap (ProseMirror) editor with a custom linear-time Bible-reference scanner
+- KJV dataset generated from `public/data/kjv.json` (via `scripts/build-bible-data.mjs`)
 
-## React Compiler
+## Scripts
+- `npm run dev` — local dev server
+- `npm run build` — typecheck + production build (PWA-ready, service worker caches the app + KJV data)
+- `npm run preview` — serve the production build
+- `npm run lint` — oxlint
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Data
+- `public/data/kjv.json` — full KJV text (4.2 MB)
+- `public/data/books.json` — book metadata (names + chapter counts)
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Branding
+Name: **Epistola** (Latin for "letter/epistle"). Mark: a folded letter forming an E, closed with a gold wax seal.

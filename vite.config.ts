@@ -10,9 +10,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {
-        name: 'Scribe — Write with Scripture',
-        short_name: 'Scribe',
-        description: 'A word processor that quotes Bible verses as you write.',
+        name: 'Epistola — Write with Scripture',
+        short_name: 'Epistola',
+        description: 'A word processor that quotes Bible verses as you write — for essays, letters and apologetics.',
         theme_color: '#4338ca',
         background_color: '#f4f6fb',
         display: 'standalone',
