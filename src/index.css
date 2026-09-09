@@ -610,3 +610,39 @@ body {
     order: 10;
   }
 }
+
+/* ---------- Print / PDF ---------- */
+
+@media print {
+  .topbar,
+  .toolbar,
+  .statusbar,
+  .hint-anchor,
+  .modal-backdrop {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .app-root {
+    min-height: 0;
+  }
+
+  .paper-wrap {
+    padding: 0;
+  }
+
+  .paper {
+    border: none;
+    box-shadow: none;
+    max-width: 100%;
+    min-height: 0;
+  }
+
+  .doc-content {
+    padding: 0;
+    font-size: 12pt;
+  }
+}

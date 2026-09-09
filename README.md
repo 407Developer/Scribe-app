@@ -7,6 +7,8 @@ Type a reference — `John 3:16`, `Ps 23:1-3, 6`, `1 Cor 13:4-7` — and it high
 Press **Shift+Enter** (or tap the highlight on a phone) to insert the KJV text right after it as a blockquote,
 even if you keep typing past the reference. Works fully **offline** as an installable PWA.
 
+Hand it in: export to **DOCX**, **PDF** (print dialog), **HTML** or **TXT**, copy, or share via the native share sheet.
+
 ## Stack
 - React 19 + TypeScript + Vite 8
 - TipTap (ProseMirror) editor with a custom linear-time Bible-reference scanner

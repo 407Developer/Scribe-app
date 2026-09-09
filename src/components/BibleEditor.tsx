@@ -10,6 +10,7 @@ import Highlight from '@tiptap/extension-highlight'
 import Placeholder from '@tiptap/extension-placeholder'
 import { BibleReference, alreadyQuoted, currentMatch, insertCurrentMatch } from '../extensions/BibleReference'
 import { Toolbar } from './Toolbar'
+import { downloadDocx, shareDoc } from '../lib/export'
 
 const STORAGE_KEY = 'scribe.doc.v1'
 
@@ -37,39 +38,6 @@ function storeDoc(doc: SavedDoc) {
   } catch {
     /* storage full or unavailable — ignore */
   }
-}
-
-function exportHtml(editor: {
-  getHTML: () => string
-  getText: () => string
-}, title: string) {
-  const body = editor.getHTML()
-  const blob = new Blob(
-    [
-      `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${title || 'Epistola'}</title>` +
-        `<style>body{font-family:Georgia,serif;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.6;font-size:18px;color:#1f2937}` +
-        `blockquote{border-left:4px solid #c7d2fe;margin:1em 0;padding:0.1em 1em;background:#f5f7ff;color:#333}` +
-        `blockquote p:last-child{color:#6b7280;font-size:0.85em}</style></head><body>${body}<hr><p style="color:#9ca3af;font-size:0.8em">Exported from Epistola</p></body></html>`,
-    ],
-    { type: 'text/html' },
-  )
-  download(blob, `${title || 'document'}.html`)
-}
-
-function exportTxt(editor: { getText: () => string }, title: string) {
-  const blob = new Blob([editor.getText()], { type: 'text/plain;charset=utf-8' })
-  download(blob, `${title || 'document'}.txt`)
-}
-
-function download(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
 }
 
 export function BibleEditor() {
@@ -201,6 +169,34 @@ export function BibleEditor() {
     }
   }
 
+  const saveDocx = async () => {
+    if (!editor) return
+    setSavedAt('Building DOCX…')
+    await downloadDocx(editor.getHTML(), title)
+    setSavedAt('Downloaded as DOCX')
+  }
+
+  const printPdf = () => {
+    if (!editor) return
+    setSavedAt('Print or save as PDF')
+    window.print()
+  }
+
+  const share = async () => {
+    if (!editor) return
+    const ok = await shareDoc(editor.getHTML(), title, editor.getText())
+    if (ok) {
+      setSavedAt('Shared')
+    } else {
+      try {
+        await navigator.clipboard.writeText(editor.getText())
+        setSavedAt('Copied to clipboard')
+      } catch {
+        setSavedAt('Sharing not supported here')
+      }
+    }
+  }
+
   const hintChip = useMemo(() => {
     if (!detected) return null
     return (
@@ -238,9 +234,10 @@ export function BibleEditor() {
         />
         <div className="topbar-actions">
           <button onClick={() => setConfirmNew(true)}>New</button>
-          <button onClick={() => editor && exportTxt(editor, title)}>TXT</button>
-          <button onClick={() => editor && exportHtml(editor, title)}>HTML</button>
+          <button onClick={saveDocx}>DOCX</button>
+          <button onClick={printPdf}>PDF</button>
           <button onClick={copyText}>Copy</button>
+          <button onClick={share}>Share</button>
           {canInstall && <button className="install-btn" onClick={installApp}>Install</button>}
           <div className="saved-indicator" title="Saved to this browser">{savedAt || 'Autosaved to this browser'}</div>
         </div>
