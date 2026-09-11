@@ -103,7 +103,7 @@ export function BibleEditor() {
       Highlight.configure({ multicolor: true }),
       Placeholder.configure({
         placeholder:
-          'Start writing…\n\nTip: type a Bible reference like “John 3:16”, then press Shift+Enter (or tap the highlight on a phone) to insert the quoted verse — even if you keep typing after it.',
+          'Start writing…\n\nTip: type a Bible reference like “John 3:16”, then press Shift+Enter (or tap the highlight on a phone). The reference is boldened and the King James text is inserted right after it — even if you keep typing after it.',
       }),
       BibleReference,
     ],
@@ -270,9 +270,9 @@ export function BibleEditor() {
               </li>
               <li>
                 <strong>Insert the verse</strong> — press <kbd>Shift</kbd>+<kbd>Enter</kbd> on a laptop or{' '}
-                <strong>tap the highlight</strong> on a phone, and the King James text is quoted right after the
-                reference. You can keep typing after it and still insert later — Epistola quotes the last reference you
-                wrote.
+                <strong>tap the highlight</strong> on a phone. The reference turns into a bolded lead-in and the King
+                James text follows it inline — verse ranges mark later verses with “Vs 3”, “Vs 4”, and so on. You can
+                keep typing after it and still insert later — Epistola quotes the last reference you wrote.
               </li>
               <li>
                 <strong>Format like a doc</strong> — headings, bold, italic, lists, quotes, links, colors and alignment.

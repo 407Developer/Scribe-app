@@ -19,6 +19,7 @@ export interface RefMatch {
   bookName: string
   chapter: number
   verses: number[]
+  verseTexts: string[]
   label: string
   quote: string
   citation: string

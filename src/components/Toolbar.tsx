@@ -1,5 +1,5 @@
 import type { Editor } from '@tiptap/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const colors = [
   '#000000',
@@ -20,6 +20,17 @@ interface Props {
 export function Toolbar({ editor, onOpenAbout }: Props) {
   const [linkUrl, setLinkUrl] = useState<string>('')
   const [showLink, setShowLink] = useState(false)
+
+  const [, forceRender] = useState(0)
+  useEffect(() => {
+    const onStateChange = () => forceRender((x) => x + 1)
+    editor.on('transaction', onStateChange)
+    editor.on('selectionUpdate', onStateChange)
+    return () => {
+      editor.off('transaction', onStateChange)
+      editor.off('selectionUpdate', onStateChange)
+    }
+  }, [editor])
 
   const setLink = () => {
     const url = linkUrl || 'https://'

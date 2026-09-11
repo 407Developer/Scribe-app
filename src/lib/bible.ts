@@ -52,6 +52,7 @@ export interface RawRef {
   bookName: string
   chapter: number
   verses: number[]
+  verseTexts: string[]
   label: string
   quote: string
   citation: string
@@ -208,7 +209,8 @@ function tryParseRef(text: string, start: number): RawRef | null {
         ? `${chapter}:${resolved[0]}-${resolved[resolved.length - 1]}`
         : `${chapter}:${resolved.join(', ')}`
 
-  const quote = resolved.map((u) => chapterText[u - 1]).join(' ')
+  const verseTexts = resolved.map((u) => chapterText[u - 1])
+  const quote = verseTexts.join(' ')
   return {
     startChar: start,
     endChar: v,
@@ -217,6 +219,7 @@ function tryParseRef(text: string, start: number): RawRef | null {
     bookName: book.name,
     chapter,
     verses: resolved,
+    verseTexts,
     label,
     quote,
     citation: `— ${book.name} ${label} (KJV)`,

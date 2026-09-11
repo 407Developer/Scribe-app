@@ -4,7 +4,6 @@ import { Plugin, PluginKey, Selection, TextSelection } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import type { Node } from '@tiptap/pm/model'
-import { Fragment } from '@tiptap/pm/model'
 import { scanDoc, scanText, toDocPos } from '../lib/bible'
 import type { RefMatch } from '../lib/types'
 
@@ -44,34 +43,41 @@ export function scanDocument(doc: Node): PluginState {
   return { matches, decor: DecorationSet.create(doc, ranges.map((r) => r.obj)) }
 }
 
-/** True when the block right after the reference already contains this quote. */
+/** True when the verse text already follows the reference inline (same paragraph). */
 export function alreadyQuoted(state: { doc: Node }, match: RefMatch): boolean {
   const doc = state.doc
   const start = match.to
   if (start >= doc.content.size) return false
-  const probe = doc.textBetween(start, Math.min(start + 140, doc.content.size), '\n')
-  const nl = probe.indexOf('\n')
-  const nextBlock = nl === -1 ? probe : probe.slice(nl + 1)
+  const probe = doc.textBetween(start, Math.min(start + 160, doc.content.size), ' ')
   const head = match.quote.slice(0, 48)
-  return !!head && nextBlock.trimStart().startsWith(head)
+  return !!head && probe.trimStart().startsWith(head)
 }
 
-/** Insert the quoted verses as a blockquote right after the reference. */
+/** The doc-style quote: bold label goes first, then the verse text, "Vs 3", "Vs 4", … for ranges. */
+export function composeVerseText(match: RefMatch): { label: string; body: string } {
+  const label = `${match.bookName} ${match.label} `
+  const vt = match.verseTexts
+  let body = vt.length ? vt[0] : ''
+  for (let i = 1; i < vt.length; i++) {
+    body += ` Vs ${match.verses[i]} ${vt[i]}`
+  }
+  return { label, body }
+}
+
+/** Insert the quoted verses as inline doc-style text, replacing the typed reference. */
 export function insertVerse(view: EditorView, match: RefMatch): boolean {
   const { state } = view
   if (alreadyQuoted(state, match)) return true
 
   const { schema } = state
-  const quotePara = schema.nodes.paragraph.create(null, schema.text(match.quote))
-  const citePara = schema.nodes.paragraph.create(null, schema.text(match.citation))
-  const bq = schema.nodes.blockquote.create(null, [quotePara, citePara])
-  const spacer = schema.nodes.paragraph.create(null)
-  const frag = Fragment.fromArray([bq, spacer])
+  const marks = schema.marks.bold.create()
+  const { label, body } = composeVerseText(match)
+  const nodes = [schema.text(label, [marks]), schema.text(body)]
 
   const tr = state.tr
-  tr.insert(match.to, frag)
+  tr.replaceWith(match.from, match.to, nodes)
   const end = tr.doc.content.size
-  let cursor = tr.mapping.map(match.to) - spacer.nodeSize
+  let cursor = match.from + nodes.reduce((n, t) => n + t.nodeSize, 0)
   if (cursor < 0 || cursor > end) cursor = end
   let sel: Selection
   try {
