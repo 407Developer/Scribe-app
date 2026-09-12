@@ -12,6 +12,8 @@ import Placeholder from '@tiptap/extension-placeholder'
 import { BibleReference, alreadyQuoted, currentMatch, insertCurrentMatch } from '../extensions/BibleReference'
 import { PageBreak } from '../extensions/PageBreak'
 import { SearchReplace } from '../extensions/SearchReplace'
+import { Autocorrect } from '../extensions/Autocorrect'
+import { PagesView, type PagesAPI } from './Pages'
 import { Toolbar } from './Toolbar'
 import { SearchBar } from './SearchBar'
 import { SettingsModal } from './SettingsModal'
@@ -19,6 +21,7 @@ import { downloadDocx, shareDoc } from '../lib/export'
 import { DEFAULT_SETTINGS, type DocSettings } from '../lib/types'
 
 const STORAGE_KEY = 'scribe.doc.v1'
+const ZOOM_KEY = 'scribe.zoom.v1'
 
 interface SavedDoc {
   title: string
@@ -68,6 +71,19 @@ export function BibleEditor() {
   const [words, setWords] = useState(0)
   const [installEvt, setInstallEvt] = useState<Event | null>(null)
   const [canInstall, setCanInstall] = useState(false)
+  const [pagesMode, setPagesMode] = useState(false)
+  const [zoom, setZoom] = useState<number>(() => {
+    try {
+      const raw = Number(localStorage.getItem(ZOOM_KEY))
+      return Number.isFinite(raw) && raw >= 0.5 && raw <= 2 ? raw : 1
+    } catch {
+      return 1
+    }
+  })
+  const [paperWidth, setPaperWidth] = useState(760)
+  const [pageCount, setPageCount] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1)
+  const pagesApiRef = useRef<PagesAPI | null>(null)
 
   useEffect(() => {
     settingsRef.current = settings
@@ -101,6 +117,49 @@ export function BibleEditor() {
     await promptEvt.prompt()
     setInstallEvt(null)
     setCanInstall(false)
+  }
+
+  useEffect(() => {
+    const measure = () => setPaperWidth(Math.min(window.innerWidth - 24, 760))
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+
+  const changeZoom = (z: number) => {
+    setZoom(z)
+    try {
+      localStorage.setItem(ZOOM_KEY, String(z))
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const onPagesLayout = (count: number, cur: number) => {
+    setPageCount((prev) => (prev === count ? prev : count))
+    setCurrentPage((prev) => (prev === cur ? prev : cur))
+  }
+
+  const scrollToMatch = (m: { from: number; to: number }) => {
+    if (!editor) return
+    if (pagesMode) {
+      pagesApiRef.current?.scrollToSelection()
+      return
+    }
+    requestAnimationFrame(() => {
+      try {
+        const dp = editor.view.domAtPos(Math.max(m.from, m.to - 1))
+        const range = document.createRange()
+        range.setStart(dp.node, dp.offset)
+        range.setEnd(dp.node, dp.offset)
+        const rect = range.getBoundingClientRect()
+        const toolbarH = document.querySelector('.toolbar')?.getBoundingClientRect().height ?? 46
+        const barH = document.querySelector('.searchbar')?.getBoundingClientRect().height ?? 0
+        window.scrollTo({ top: rect.top + window.scrollY - toolbarH - barH - 16, behavior: 'smooth' })
+      } catch {
+        /* ignore */
+      }
+    })
   }
 
   useEffect(() => {
@@ -170,6 +229,7 @@ export function BibleEditor() {
       BibleReference,
       PageBreak,
       SearchReplace,
+      Autocorrect,
     ],
     content: html || '<p></p>',
     editorProps: {
@@ -307,18 +367,47 @@ export function BibleEditor() {
         </div>
       </header>
 
-      <Toolbar editor={editor} onOpenAbout={() => setAboutOpen(true)} onFind={() => setFindOpen(true)} onSettings={() => setSettingsOpen(true)} />
+      <Toolbar
+        editor={editor}
+        onOpenAbout={() => setAboutOpen(true)}
+        onFind={() => setFindOpen(true)}
+        onSettings={() => setSettingsOpen(true)}
+        zoom={zoom}
+        onZoom={changeZoom}
+        pagesMode={pagesMode}
+        onTogglePages={() => setPagesMode((p) => !p)}
+      />
 
-      {findOpen && <SearchBar editor={editor} onClose={() => { setFindOpen(false); editor?.chain().searchClear().run() }} />}
+      {findOpen && <SearchBar editor={editor} onClose={() => { setFindOpen(false); editor?.chain().searchClear().run() }} scrollToMatch={scrollToMatch} />}
 
       <div className="paper-wrap">
-        <div className="paper" style={{ '--doc-lh': settings.lineSpacing, '--doc-ps': PARASPACE_CSS[settings.paraSpacing] } as CSSProperties}>
-          <EditorContent editor={editor} />
+        <div className={`paper-flow ${pagesMode ? 'pages-on' : ''}`}>
+          <div className="zoom-wrap" style={{ width: paperWidth * zoom }}>
+            <div
+              className="paper"
+              style={
+                {
+                  width: paperWidth,
+                  transform: zoom === 1 ? undefined : `scale(${zoom})`,
+                  '--doc-lh': settings.lineSpacing,
+                  '--doc-ps': PARASPACE_CSS[settings.paraSpacing],
+                } as CSSProperties
+              }
+            >
+              <EditorContent editor={editor} />
+            </div>
+          </div>
+          {pagesMode && (
+            <div className="pages-flow">
+              <PagesView editor={editor} settings={settings} zoom={zoom} paperWidth={paperWidth} apiRef={pagesApiRef} onLayout={onPagesLayout} />
+            </div>
+          )}
         </div>
       </div>
 
       <footer className="statusbar">
         <span>{words} {words === 1 ? 'word' : 'words'}</span>
+        {pagesMode && pageCount > 0 && <span className="status-pages">Page {currentPage} of {pageCount}</span>}
         <span className="status-spacer" />
         <span className="status-version">KJV · offline</span>
       </footer>
@@ -345,9 +434,17 @@ export function BibleEditor() {
                 page breaks, and line/paragraph spacing (see the sliders button).
               </li>
               <li>
-                <strong>Find &amp; replace</strong> — press <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>F</kbd> or the
-                magnifier button to search, jump between matches, and replace one or all.
-              </li>
+              <strong>See the pages as you write</strong> — the pages button in the toolbar switches to a Word-style
+              print layout with numbered pages that reflow as you type; the zoom menu scales 50–200%.
+            </li>
+            <li>
+              <strong>Find &amp; replace</strong> — press <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>F</kbd> or the
+              magnifier button to search, jump between matches (it scrolls to each one), and replace one or all.
+            </li>
+            <li>
+              <strong>Auto-correct</strong> — common typos like <em>teh</em>, <em>recieve</em>, or <em>adress</em>{' '}
+              fix themselves as you type.
+            </li>
             </ul>
             <p className="modal-note">Your document autosaves in this browser. More Bible versions are coming.</p>
             <button className="modal-close" onClick={() => setAboutOpen(false)}>Got it</button>

@@ -17,9 +17,13 @@ interface Props {
   onOpenAbout: () => void
   onFind: () => void
   onSettings: () => void
+  zoom: number
+  onZoom: (z: number) => void
+  pagesMode: boolean
+  onTogglePages: () => void
 }
 
-export function Toolbar({ editor, onOpenAbout, onFind, onSettings }: Props) {
+export function Toolbar({ editor, onOpenAbout, onFind, onSettings, zoom, onZoom, pagesMode, onTogglePages }: Props) {
   const [linkUrl, setLinkUrl] = useState<string>('')
   const [showLink, setShowLink] = useState(false)
 
@@ -128,6 +132,14 @@ export function Toolbar({ editor, onOpenAbout, onFind, onSettings }: Props) {
         <button className="tb-btn" title="Insert page break (⌘/Ctrl+Enter)" onClick={() => editor.chain().focus().insertContent({ type: 'pageBreak' }).run()}>
           <svg viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h16M4 18h16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="5 5" /><path d="M4 12h16" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
         </button>
+        <button className={`tb-btn ${pagesMode ? 'active' : ''}`} title="Pages view (print layout)" onClick={onTogglePages}>
+          <svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" rx="1.5" /><path d="M4 8h16M4 12h16" stroke="currentColor" strokeWidth="1.8" /><text x="18" y="17.5" fontSize="7" fill="currentColor" textAnchor="middle">1</text><text x="7" y="17.5" fontSize="7" fill="currentColor" textAnchor="middle">2</text></svg>
+        </button>
+        <select className="tb-select zoom-select" title="Page zoom" value={zoom} onChange={(e) => onZoom(Number(e.target.value))}>
+          {[50, 67, 80, 100, 125, 150, 200].map((z) => (
+            <option key={z} value={z / 100}>{z}%</option>
+          ))}
+        </select>
       </div>
 
       <div className="tb-group">
