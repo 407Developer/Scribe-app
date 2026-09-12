@@ -308,7 +308,7 @@ body {
 .doc-content {
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 17px;
-  line-height: 1.7;
+  line-height: var(--doc-lh, 1.7);
   color: var(--ink);
   padding: 40px 48px;
   min-height: 60vh;
@@ -316,7 +316,37 @@ body {
 }
 
 .doc-content p {
-  margin: 0 0 0.9em;
+  margin: 0 0 var(--doc-ps, 0.9em);
+}
+
+.doc-content .page-break {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  margin: 12px 0;
+  break-after: page;
+  user-select: none;
+  color: var(--muted);
+}
+
+.doc-content .page-break::before {
+  content: '';
+  flex: 1;
+  border-top: 2px dashed var(--line);
+}
+
+.doc-content .page-break::after {
+  content: 'PAGE BREAK';
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+
+.doc-content .page-break.ProseMirror-selectednode {
+  outline: 2px solid var(--brand);
+  border-radius: 6px;
 }
 
 .doc-content h1 {
@@ -401,6 +431,89 @@ body {
 .bible-ref:hover {
   background: #fcd34d;
   box-shadow: 0 0 0 2px rgba(202, 138, 4, 0.55);
+}
+
+/* ---------- Find & replace ---------- */
+
+.searchbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  flex-wrap: wrap;
+  box-shadow: 0 2px 6px rgba(16, 24, 40, 0.08);
+}
+
+.searchbar input {
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 14px;
+  outline: none;
+  min-width: 0;
+}
+
+.searchbar input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+
+.searchbar .find-input {
+  flex: 2 1 140px;
+}
+
+.searchbar .rep-input {
+  flex: 1 1 140px;
+}
+
+.searchbar .cnt {
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.searchbar button {
+  height: 30px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.searchbar button:hover {
+  background: #f5f3ee;
+}
+
+.searchbar button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+.searchbar .nav {
+  padding: 0 9px;
+}
+
+.searchbar .close {
+  border-color: transparent;
+  background: transparent;
+}
+
+.find-match {
+  background: rgba(176, 138, 50, 0.28);
+  border-radius: 2px;
+}
+
+.find-current {
+  background: var(--highlight);
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px var(--gold);
 }
 
 /* ---------- Hint chip ---------- */
@@ -531,6 +644,49 @@ body {
   font-size: 13px;
 }
 
+.modal-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 11px 0;
+  font-size: 14px;
+}
+
+.modal-field label {
+  color: var(--ink);
+}
+
+.modal-field select {
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 8px;
+  font-size: 14px;
+  background: #fff;
+  color: var(--ink);
+  min-width: 130px;
+  outline: none;
+}
+
+.modal-field select:focus {
+  border-color: var(--brand);
+}
+
+.modal-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  margin: 12px 0 4px;
+}
+
+.modal-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand);
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -645,5 +801,15 @@ body {
   .doc-content {
     padding: 0;
     font-size: 12pt;
+  }
+
+  .doc-content .page-break {
+    height: 0;
+    margin: 0;
+  }
+
+  .doc-content .page-break::before,
+  .doc-content .page-break::after {
+    display: none;
   }
 }

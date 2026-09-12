@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react'
 import { StarterKit } from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -9,8 +10,13 @@ import Color from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
 import Placeholder from '@tiptap/extension-placeholder'
 import { BibleReference, alreadyQuoted, currentMatch, insertCurrentMatch } from '../extensions/BibleReference'
+import { PageBreak } from '../extensions/PageBreak'
+import { SearchReplace } from '../extensions/SearchReplace'
 import { Toolbar } from './Toolbar'
+import { SearchBar } from './SearchBar'
+import { SettingsModal } from './SettingsModal'
 import { downloadDocx, shareDoc } from '../lib/export'
+import { DEFAULT_SETTINGS, type DocSettings } from '../lib/types'
 
 const STORAGE_KEY = 'scribe.doc.v1'
 
@@ -18,7 +24,12 @@ interface SavedDoc {
   title: string
   html: string
   updated: number
+  settings?: DocSettings
 }
+
+const PARASPACE_CSS: Record<DocSettings['paraSpacing'], string> = { none: '0', small: '0.35em', normal: '0.9em' }
+
+const PAGE_MARGIN_INCH: Record<DocSettings['margins'], number> = { normal: 1, narrow: 0.5, wide: 1.25 }
 
 function loadDoc(): SavedDoc | null {
   try {
@@ -41,15 +52,26 @@ function storeDoc(doc: SavedDoc) {
 }
 
 export function BibleEditor() {
-  const [{ title, html }, setDoc] = useState<SavedDoc>(() => loadDoc() ?? { title: '', html: '', updated: 0 })
+  const [{ title, html, settings: docSettings }, setDoc] = useState<SavedDoc>(() => {
+    const d = loadDoc() ?? { title: '', html: '', updated: 0 }
+    return { ...d, settings: d.settings ?? DEFAULT_SETTINGS }
+  })
+  const settings = docSettings ?? DEFAULT_SETTINGS
   const savedAtRef = useRef<number>(0)
   const saveTimer = useRef<number | undefined>(undefined)
+  const settingsRef = useRef<DocSettings>(settings)
   const [savedAt, setSavedAt] = useState<string>('')
   const [aboutOpen, setAboutOpen] = useState(false)
   const [confirmNew, setConfirmNew] = useState(false)
+  const [findOpen, setFindOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [words, setWords] = useState(0)
   const [installEvt, setInstallEvt] = useState<Event | null>(null)
   const [canInstall, setCanInstall] = useState(false)
+
+  useEffect(() => {
+    settingsRef.current = settings
+  }, [settings])
 
   useEffect(() => {
     const isStandalone =
@@ -81,16 +103,56 @@ export function BibleEditor() {
     setCanInstall(false)
   }
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault()
+        setFindOpen((open) => !open)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  useEffect(() => {
+    const id = 'epistola-page-css'
+    let el = document.getElementById(id) as HTMLStyleElement | null
+    if (!el) {
+      el = document.createElement('style')
+      el.id = id
+      document.head.appendChild(el)
+    }
+    const marginIn = PAGE_MARGIN_INCH[settings.margins]
+    const size = settings.pageSize === 'a4' ? 'A4' : 'Letter'
+    const pageNumbers = settings.pageNumbers
+      ? `@page{@bottom-center{content:counter(page);font-family:Georgia,serif;font-size:11px;color:#857b6c;}}`
+      : ''
+    el.textContent = `@page{size:${size};margin:${marginIn}in;margin-bottom:${pageNumbers ? 0.75 : marginIn}in;}${pageNumbers}`
+    return () => {
+      const node = document.getElementById(id)
+      node?.remove()
+    }
+  }, [settings])
+
   const flush = useCallback(
     (editor: { getHTML: () => string; getText: () => string } | null, titleValue: string) => {
       if (!editor) return
       const now = Date.now()
       savedAtRef.current = now
-      storeDoc({ title: titleValue, html: editor.getHTML(), updated: now })
+      storeDoc({ title: titleValue, html: editor.getHTML(), updated: now, settings: settingsRef.current })
       setSavedAt('Saved just now')
     },
     [],
   )
+
+  const updateSettings = (patch: Partial<DocSettings>) => {
+    const next: DocSettings = { ...settingsRef.current, ...patch }
+    settingsRef.current = next
+    setDoc((d) => ({ ...d, settings: next }))
+    setSavedAt('Saved just now')
+    window.clearTimeout(saveTimer.current)
+    saveTimer.current = window.setTimeout(() => flush(editor, title), 400)
+  }
 
   const editor = useEditor({
     extensions: [
@@ -106,6 +168,8 @@ export function BibleEditor() {
           'Start writing…\n\nTip: type a Bible reference like “John 3:16”, then press Shift+Enter (or tap the highlight on a phone). The reference is boldened and the King James text is inserted right after it — even if you keep typing after it.',
       }),
       BibleReference,
+      PageBreak,
+      SearchReplace,
     ],
     content: html || '<p></p>',
     editorProps: {
@@ -172,7 +236,7 @@ export function BibleEditor() {
   const saveDocx = async () => {
     if (!editor) return
     setSavedAt('Building DOCX…')
-    await downloadDocx(editor.getHTML(), title)
+    await downloadDocx(editor.getHTML(), title, settingsRef.current)
     setSavedAt('Downloaded as DOCX')
   }
 
@@ -243,10 +307,12 @@ export function BibleEditor() {
         </div>
       </header>
 
-      <Toolbar editor={editor} onOpenAbout={() => setAboutOpen(true)} />
+      <Toolbar editor={editor} onOpenAbout={() => setAboutOpen(true)} onFind={() => setFindOpen(true)} onSettings={() => setSettingsOpen(true)} />
+
+      {findOpen && <SearchBar editor={editor} onClose={() => { setFindOpen(false); editor?.chain().searchClear().run() }} />}
 
       <div className="paper-wrap">
-        <div className="paper">
+        <div className="paper" style={{ '--doc-lh': settings.lineSpacing, '--doc-ps': PARASPACE_CSS[settings.paraSpacing] } as CSSProperties}>
           <EditorContent editor={editor} />
         </div>
       </div>
@@ -275,7 +341,12 @@ export function BibleEditor() {
                 keep typing after it and still insert later — Epistola quotes the last reference you wrote.
               </li>
               <li>
-                <strong>Format like a doc</strong> — headings, bold, italic, lists, quotes, links, colors and alignment.
+                <strong>Format like a doc</strong> — headings, bold, italic, lists, quotes, links, colors, alignment,
+                page breaks, and line/paragraph spacing (see the sliders button).
+              </li>
+              <li>
+                <strong>Find &amp; replace</strong> — press <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>F</kbd> or the
+                magnifier button to search, jump between matches, and replace one or all.
               </li>
             </ul>
             <p className="modal-note">Your document autosaves in this browser. More Bible versions are coming.</p>
@@ -283,6 +354,8 @@ export function BibleEditor() {
           </div>
         </div>
       )}
+
+      {settingsOpen && <SettingsModal settings={settings} onChange={updateSettings} onClose={() => setSettingsOpen(false)} />}
 
       {confirmNew && (
         <div className="modal-backdrop" onClick={() => setConfirmNew(false)}>

@@ -1,7 +1,31 @@
-import { Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Document, type IRunOptions } from 'docx'
+import { Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Document, Footer, PageBreak, PageNumber, type IRunOptions } from 'docx'
+import type { DocSettings } from './types'
 
 const SIZE = 22
+
+const PAGE_SIZE: Record<'a4' | 'letter', { width: number; height: number }> = {
+  a4: { width: 11906, height: 16838 },
+  letter: { width: 12240, height: 15840 },
+}
+
+const PAGE_MARGIN: Record<'normal' | 'narrow' | 'wide', number> = {
+  normal: 1440,
+  narrow: 720,
+  wide: 1800,
+}
+
+const PARA_AFTER: Record<'none' | 'small' | 'normal', number> = {
+  none: 0,
+  small: 80,
+  normal: 140,
+}
+
 const INLINE_TAGS = new Set(['A', 'B', 'STRONG', 'I', 'EM', 'U', 'CODE', 'MARK', 'SPAN', 'BR'])
+
+function paraSpacing(settings: DocSettings | undefined, after: number) {
+  const line = Math.round((settings?.lineSpacing ?? 1.5) * 240)
+  return { line, lineRule: 'auto' as const, after: after ?? PARA_AFTER[settings?.paraSpacing ?? 'normal'] }
+}
 
 function download(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
@@ -24,16 +48,31 @@ export function exportTxt(text: string, title: string) {
   download(blob, `${sanitizeFilename(title)}.txt`)
 }
 
-export function exportHtml(body: string, title: string) {
+export function exportHtml(body: string, title: string, settings?: DocSettings) {
+  const lineHeight = settings?.lineSpacing ?? 1.5
   const doc = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${title || 'Epistola'}</title>` +
-    `<style>body{font-family:Georgia,serif;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.6;font-size:18px;color:#1f2937}` +
+    `<style>body{font-family:Georgia,serif;max-width:720px;margin:40px auto;padding:0 20px;line-height:${lineHeight};font-size:18px;color:#1f2937}` +
+    `p{margin:0 0 ${settings?.paraSpacing === 'none' ? '0' : settings?.paraSpacing === 'small' ? '0.35em' : '0.6em'}}` +
+    `div.page-break{break-after:page;height:0}` +
     `blockquote{border-left:4px solid #c9a85d;margin:1em 0;padding:0.1em 1em;background:#f6ecd6;color:#333}` +
-    `blockquote p:last-child{color:#6b7280;font-size:0.85em}</style></head><body>${body}<hr><p style="color:#9ca3af;font-size:0.8em">Exported from Epistola</p></body></html>`
+    `blockquote p:last-child{color:#6b7280;font-size:0.85em}` +
+    `@media print{@page{margin:${PAGE_MARGIN[settings?.margins ?? 'normal'] / 1440}in;size:${settings?.pageSize === 'a4' ? 'A4' : 'Letter'}}}` +
+    `</style></head><body>${body}<hr><p style="color:#9ca3af;font-size:0.8em">Exported from Epistola</p></body></html>`
   download(new Blob([doc], { type: 'text/html' }), `${sanitizeFilename(title)}.html`)
 }
 
 function hexToHex(fill: string[]): string {
   return fill.slice(0, 3).map((n) => Number(n).toString(16).padStart(2, '0')).join('').toUpperCase()
+}
+
+/** Accepts `rgb(0, 0, 0)`, `rgba(...)`, or `#rrggbb`; returns uppercase hex or undefined. */
+function parseColor(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  const rgb = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(value.trim())
+  if (rgb) return hexToHex(rgb.slice(1))
+  const hex = /^#([0-9a-f]{6})$/i.exec(value.trim())
+  if (hex) return hex[1].toUpperCase()
+  return undefined
 }
 
 function styleFrom(node: Element): IRunOptions {
@@ -45,15 +84,10 @@ function styleFrom(node: Element): IRunOptions {
   if (tag === 'CODE') o.font = 'Consolas'
   if (tag === 'A') o.underline = {}
   const style = node.getAttribute('style') ?? ''
-  const color = /color:\s*([^;]+)/.exec(style)?.[1]
-  const bg = /background(?:-color)?:\s*([^;]+)/.exec(style)?.[1]
-  if (color) o.color = color.trim()
-  if (bg) {
-    const rgb = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(bg)
-    const hex = /^#([0-9a-f]{6})$/i.exec(bg.trim())
-    if (rgb) o.highlight = hexToHex(rgb.slice(1))
-    else if (hex) o.highlight = hex[1].toUpperCase()
-  }
+  const color = parseColor(/color:\s*([^;]+)/.exec(style)?.[1])
+  const bg = parseColor(/background(?:-color)?:\s*([^;]+)/.exec(style)?.[1])
+  if (color) o.color = color
+  if (bg) o.highlight = bg
   return o as unknown as IRunOptions
 }
 
@@ -95,18 +129,22 @@ function alignmentOf(el: Element): AlignValue | undefined {
   return { center: AlignmentType.CENTER, right: AlignmentType.END, justify: AlignmentType.BOTH }[m]
 }
 
-export async function downloadDocx(html: string, title: string) {
+export async function downloadDocx(html: string, title: string, settings?: DocSettings) {
   const name = sanitizeFilename(title)
   const parsed = new DOMParser().parseFromString(html, 'text/html')
   const paragraphs: Paragraph[] = []
 
   const walk = (elements: Element[]) => {
     for (const el of elements) {
+      if (el.tagName === 'DIV' && el.classList.contains('page-break')) {
+        paragraphs.push(new Paragraph({ children: [new TextRun({ children: [new PageBreak()] })] }))
+        continue
+      }
       switch (el.tagName) {
         case 'P': {
           const runs = paraRuns(el)
           if (!runs.length) break
-          paragraphs.push(new Paragraph({ children: runs, alignment: alignmentOf(el), spacing: { after: 140 } }))
+          paragraphs.push(new Paragraph({ children: runs, alignment: alignmentOf(el), spacing: paraSpacing(settings, 140) }))
           break
         }
         case 'H1':
@@ -114,7 +152,7 @@ export async function downloadDocx(html: string, title: string) {
         case 'H3': {
           const runs = paraRuns(el)
           const heading = el.tagName === 'H1' ? HeadingLevel.HEADING_1 : el.tagName === 'H2' ? HeadingLevel.HEADING_2 : HeadingLevel.HEADING_3
-          paragraphs.push(new Paragraph({ children: runs, heading, spacing: { before: 200, after: 120 } }))
+          paragraphs.push(new Paragraph({ children: runs, heading, spacing: { line: Math.round((settings?.lineSpacing ?? 1.5) * 240), lineRule: 'auto', before: 200, after: 120 } }))
           break
         }
         case 'BLOCKQUOTE': {
@@ -129,7 +167,7 @@ export async function downloadDocx(html: string, title: string) {
                 children: runs,
                 indent: { left: 720 },
                 border: { left: { style: 'single', size: 12, color: 'C9A85D', space: 4 } },
-                spacing: { after: 120 },
+                spacing: paraSpacing(settings, 120),
               }),
             )
           })
@@ -137,13 +175,13 @@ export async function downloadDocx(html: string, title: string) {
         }
         case 'UL': {
           for (const li of Array.from(el.children).filter((c) => c.tagName === 'LI')) {
-            paragraphs.push(new Paragraph({ children: paraRuns(li), bullet: { level: 0 }, spacing: { after: 80 } }))
+            paragraphs.push(new Paragraph({ children: paraRuns(li), bullet: { level: 0 }, spacing: paraSpacing(settings, 80) }))
           }
           break
         }
         case 'OL': {
           for (const li of Array.from(el.children).filter((c) => c.tagName === 'LI')) {
-            paragraphs.push(new Paragraph({ children: paraRuns(li), numbering: { reference: 'epistola-list', level: 0 }, spacing: { after: 80 } }))
+            paragraphs.push(new Paragraph({ children: paraRuns(li), numbering: { reference: 'epistola-list', level: 0 }, spacing: paraSpacing(settings, 80) }))
           }
           break
         }
@@ -158,6 +196,19 @@ export async function downloadDocx(html: string, title: string) {
   walk(Array.from(parsed.body.children))
   if (!paragraphs.length) paragraphs.push(new Paragraph({ children: [new TextRun({ text: '' })] }))
 
+  const margin = PAGE_MARGIN[settings?.margins ?? 'normal']
+  const footer =
+    settings?.pageNumbers === false
+      ? undefined
+      : new Footer({
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [new TextRun({ children: [PageNumber.CURRENT], size: 18, color: '857B6C' })],
+            }),
+          ],
+        })
+
   const doc = new Document({
     creator: 'Epistola',
     title: name,
@@ -168,7 +219,13 @@ export async function downloadDocx(html: string, title: string) {
     sections: [
       {
         children: paragraphs,
-        properties: { page: { margin: { top: 1000, bottom: 1000, left: 1260, right: 1260 } } },
+        footers: footer ? { default: footer } : undefined,
+        properties: {
+          page: {
+            size: PAGE_SIZE[settings?.pageSize ?? 'letter'],
+            margin: { top: Math.round(margin * 0.9), bottom: Math.round(margin * 0.9), left: margin, right: margin },
+          },
+        },
       },
     ],
   })

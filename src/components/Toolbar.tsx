@@ -15,9 +15,11 @@ const colors = [
 interface Props {
   editor: Editor
   onOpenAbout: () => void
+  onFind: () => void
+  onSettings: () => void
 }
 
-export function Toolbar({ editor, onOpenAbout }: Props) {
+export function Toolbar({ editor, onOpenAbout, onFind, onSettings }: Props) {
   const [linkUrl, setLinkUrl] = useState<string>('')
   const [showLink, setShowLink] = useState(false)
 
@@ -120,6 +122,15 @@ export function Toolbar({ editor, onOpenAbout }: Props) {
       </div>
 
       <div className="tb-group">
+        <button className="tb-btn" title="Find & replace (⌘/Ctrl+F)" onClick={onFind}>
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" strokeWidth="2.2" /><path d="M15.5 15.5L20 20" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
+        </button>
+        <button className="tb-btn" title="Insert page break (⌘/Ctrl+Enter)" onClick={() => editor.chain().focus().insertContent({ type: 'pageBreak' }).run()}>
+          <svg viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h16M4 18h16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="5 5" /><path d="M4 12h16" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
+        </button>
+      </div>
+
+      <div className="tb-group">
         {showLink ? (
           <span className="tb-linkbar">
             <input
@@ -183,6 +194,9 @@ export function Toolbar({ editor, onOpenAbout }: Props) {
       <div className="tb-group">
         <button className="tb-btn" title="Clear formatting" onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}>
           <svg viewBox="0 0 24 24"><path d="M4 6h16M6 6l6 14h2M14 6l-3 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+        <button className="tb-btn" title="Page & text settings" onClick={onSettings}>
+          <svg viewBox="0 0 24 24"><path d="M4 8h10M18 8h2M4 16h4M12 16h8M14 6v4M6 14v4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
         </button>
         <button className="tb-btn" title="About this app" onClick={onOpenAbout}>
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M12 11v5M12 8h.01" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
